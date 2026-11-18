@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BucinBuilder — Buat Web Bucin Instan</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>💘 BucinBuilder</h1>
+      <p>Tinggal pilih template, isi pesan, langsung jadi link siap kirim!</p>
+    </header>
+
+    <!-- Bagian 1: Pilih Template & Buat Link -->
+    <div class="card">
+      <h3>1. Pilih Template Favorit</h3>
+      <div class="template-grid">
+        <div class="tpl-option active" onclick="pilihTemplate('tombol-kabur', this)">
+          <h4>🏃 Tombol Kabur</h4>
+          <small>Tombol "Enggak" lari saat mau diklik</small>
+        </div>
+        <div class="tpl-option" onclick="pilihTemplate('surat-amplop', this)">
+          <h4>💌 Surat Rahasia</h4>
+          <small>Amplop interaktif romantis</small>
+        </div>
+        <div class="tpl-option" onclick="pilihTemplate('voucher-bucin', this)">
+          <h4>🎟️ Voucher Spesial</h4>
+          <small>Kupon traktir / bebas ngambek</small>
+        </div>
+      </div>
+
+      <h3>2. Isi Detail Pesan</h3>
+      <input type="text" id="dari" placeholder="Dari siapa? (Contoh: Budi)" required>
+      <input type="text" id="untuk" placeholder="Untuk siapa? (Contoh: Ayu)" required>
+      <textarea id="pesan" rows="3" placeholder="Tulis pesan utamanya di sini..." required></textarea>
+      <button class="btn-primary" onclick="buatLink()">Buat Link Sekarang ✨</button>
+
+      <div class="hasil-link" id="boxHasil">
+        <b>Link berhasil dibuat! Bagikan ke dia:</b><br>
+        <a id="linkOutput" href="#" target="_blank"></a>
+      </div>
+    </div>
+
+    <!-- Bagian 2: Kirim & Lihat Ulasan Bintang -->
+    <div class="card">
+      <h3>⭐ Ulasan Pengguna</h3>
+      <div>
+        <div class="stars" id="starContainer">
+          <span onclick="setBintang(1)">★</span>
+          <span onclick="setBintang(2)">★</span>
+          <span onclick="setBintang(3)">★</span>
+          <span onclick="setBintang(4)">★</span>
+          <span onclick="setBintang(5)">★</span>
+        </div>
+        <input type="text" id="namaReviewer" placeholder="Namamu...">
+        <textarea id="komentarReviewer" rows="2" placeholder="Tulis komentarmu tentang web ini..."></textarea>
+        <button class="btn-primary" style="background:#2b2d42;" onclick="kirimUlasan()">Kirim Ulasan</button>
+      </div>
+
+      <hr style="margin: 25px 0; border: 0; border-top: 1px solid #eee;">
+      <div id="daftarUlasan">Memuat ulasan...</div>
+    </div>
+  </div>
+
+  <script>
+    let templateTerpilih = 'tombol-kabur';
+    let ratingTerpilih = 5;
+
+    function pilihTemplate(nama, el) {
+      templateTerpilih = nama;
+      document.querySelectorAll('.tpl-option').forEach(item => item.classList.remove('active'));
+      el.classList.add('active');
+    }
+
+    async function buatLink() {
+      const dari = document.getElementById('dari').value;
+      const untuk = document.getElementById('untuk').value;
+      const pesan = document.getElementById('pesan').value;
+
+      if (!dari || !untuk || !pesan) return alert('Isi semua kolom dulu ya!');
+
+      const res = await fetch('/api/buat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ template: templateTerpilih, dari, untuk, pesan })
+      });
+      const data = await res.json();
+      const fullUrl = window.location.origin + data.url;
+
+      const box = document.getElementById('boxHasil');
+      const linkEl = document.getElementById('linkOutput');
+      box.style.display = 'block';
+      linkEl.href = fullUrl;
+      linkEl.textContent = fullUrl;
+    }
+
+    function setBintang(nilai) {
+      ratingTerpilih = nilai;
+      const stars = document.querySelectorAll('#starContainer span');
+      stars.forEach((s, index) => {
+        s.classList.toggle('selected', index < nilai);
+      });
+    }
+
+    async function kirimUlasan() {
+      const nama = document.getElementById('namaReviewer').value;
+      const komentar = document.getElementById('komentarReviewer').value;
+      if (!nama || !komentar) return alert('Nama dan komentar wajib diisi!');
+
+      await fetch('/api/ulasan', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ nama, bintang: ratingTerpilih, komentar })
+      });
+
+      document.getElementById('namaReviewer').value = '';
+      document.getElementById('komentarReviewer').value = '';
+      muatUlasan();
+    }
+
+    async function muatUlasan() {
+      const res = await fetch('/api/ulasan');
+      const data = await res.json();
+      const container = document.getElementById('daftarUlasan');
+
+      if (data.length === 0) {
+        container.innerHTML = '<p style="color:#888;">Belum ada ulasan. Jadilah yang pertama!</p>';
+        return;
+      }
+
+      container.innerHTML = data.map(u => `
+        <div class="review-item">
+          <b>${u.nama}</b> <span class="bintang-kuning">${'★'.repeat(u.bintang)}${'☆'.repeat(5 - u.bintang)}</span>
+          <p style="margin: 5px 0 0; color: #555;">${u.komentar}</p>
+        </div>
+      `).join('');
+    }
+
+    // Set default 5 bintang & muat ulasan saat halaman dibuka
+    setBintang(5);
+    muatUlasan();
+  </script>
+</body>
+</html>
